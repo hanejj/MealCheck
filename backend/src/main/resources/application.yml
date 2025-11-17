@@ -1,0 +1,62 @@
+spring:
+  application:
+    name: meal-check-backend
+  jackson:
+    time-zone: Asia/Seoul
+    date-format: yyyy-MM-dd HH:mm:ss
+  
+  # Database 설정
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/mealcheck?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
+    # 기본 값은 로컬 개발용 placeholder 이고, 운영/배포 환경에서는 반드시 환경 변수로 덮어써야 합니다.
+    username: ${DB_USERNAME:mealcheck}
+    password: ${DB_PASSWORD:changeme_password}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  
+  # JPA 설정
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+    open-in-view: false
+
+# 서버 설정
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+# Actuator 설정 (헬스체크, 메트릭)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# JWT 설정
+jwt:
+  # 기본 값은 예시용 placeholder 이고, 운영/배포 환경에서는 반드시 JWT_SECRET 환경 변수로 덮어써야 합니다.
+  secret: ${JWT_SECRET:change_me_jwt_secret}
+  expiration: ${JWT_EXPIRATION:86400000}  # 24시간 (밀리초)
+
+# 로깅 설정
+logging:
+  level:
+    com.mealcheck: INFO
+    org.springframework: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+

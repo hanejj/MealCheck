@@ -1,0 +1,39 @@
+# Build output (Docker 빌드에서 JAR를 사용해야 하므로 target은 포함)
+*.war
+*.ear
+
+# Maven
+.mvn
+mvnw
+mvnw.cmd
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+*.md
+
+# Logs
+*.log
+logs
+
+# Environment
+.env
+.env.local
+
+# Test
+test-output
+
