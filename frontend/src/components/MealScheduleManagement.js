@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { mealScheduleAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { maskNameForDemo, maskDepartmentForDemo } from '../utils/masking';
 import './MealScheduleManagement.css';
 
 function MealScheduleManagement() {
-  const { user } = useAuth();
+  const { user, isDemo } = useAuth();
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -112,8 +113,9 @@ function MealScheduleManagement() {
   };
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    if (!dateString) return '';
+    const [datePart] = String(dateString).split('T'); // 'YYYY-MM-DD'만 사용
+    return datePart;
   };
 
   if (loading) {
@@ -124,9 +126,11 @@ function MealScheduleManagement() {
     <div className="meal-schedule-management">
       <div className="page-header">
         <h1 className="page-title">식사 스케줄 관리</h1>
-        <button className="btn btn-primary" onClick={handleOpenModal}>
-          + 스케줄 등록
-        </button>
+        {!isDemo && (
+          <button className="btn btn-primary" onClick={handleOpenModal}>
+            + 스케줄 등록
+          </button>
+        )}
       </div>
 
       <div className="card">
@@ -137,7 +141,7 @@ function MealScheduleManagement() {
               <th>식사 시간</th>
               <th>설명</th>
               <th>등록자</th>
-              <th>참여 현황</th>
+              <th>수령 현황</th>
               <th>작업</th>
             </tr>
           </thead>
@@ -158,7 +162,12 @@ function MealScheduleManagement() {
                     </span>
                   </td>
                   <td>{schedule.description || '-'}</td>
-                  <td>{schedule.createdByName}</td>
+                  <td>
+                    {(() => {
+                      const isOther = isDemo && schedule.createdById !== user?.id;
+                      return isOther ? maskNameForDemo(schedule.createdByName) : schedule.createdByName;
+                    })()}
+                  </td>
                   <td>
                     <span className="participant-count">
                       {schedule.checkedCount || 0} / {schedule.totalParticipants || 0}명
@@ -170,14 +179,16 @@ function MealScheduleManagement() {
                       onClick={() => handleShowParticipants(schedule)}
                       style={{ marginRight: '0.5rem' }}
                     >
-                      참여자
+                      수령자
                     </button>
-                    <button
-                      className="btn btn-sm btn-danger"
-                      onClick={() => handleDelete(schedule.id)}
-                    >
-                      삭제
-                    </button>
+                    {!isDemo && (
+                      <button
+                        className="btn btn-sm btn-danger"
+                        onClick={() => handleDelete(schedule.id)}
+                      >
+                        삭제
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))
@@ -237,33 +248,35 @@ function MealScheduleManagement() {
                 />
               </div>
 
-              <div className="form-actions">
-                <button type="button" className="btn btn-outline" onClick={handleCloseModal}>
-                  취소
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  등록
-                </button>
-              </div>
+              {!isDemo && (
+                <div className="form-actions">
+                  <button type="button" className="btn btn-outline" onClick={handleCloseModal}>
+                    취소
+                  </button>
+                  <button type="submit" className="btn btn-primary">
+                    등록
+                  </button>
+                </div>
+              )}
             </form>
           </div>
         </div>
       )}
 
-      {/* 참여자 목록 모달 */}
+      {/* 수령자 목록 모달 */}
       {showParticipantsModal && (
         <div className="modal" onClick={handleCloseParticipantsModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2 className="modal-title">
-                참여자 목록 - {selectedSchedule && formatDate(selectedSchedule.mealDate)} {selectedSchedule && getMealTypeText(selectedSchedule.mealType)}
+                수령자 목록 - {selectedSchedule && formatDate(selectedSchedule.mealDate)} {selectedSchedule && getMealTypeText(selectedSchedule.mealType)}
               </h2>
               <button className="close-btn" onClick={handleCloseParticipantsModal}>×</button>
             </div>
 
             <div className="participants-list">
               {participants.length === 0 ? (
-                <p className="empty-message">아직 참여한 사용자가 없습니다.</p>
+                <p className="empty-message">아직 식사를 수령한 사용자가 없습니다.</p>
               ) : (
                 <table className="table">
                   <thead>
@@ -275,18 +288,22 @@ function MealScheduleManagement() {
                     </tr>
                   </thead>
                   <tbody>
-                    {participants.map((participant) => (
-                      <tr key={participant.id}>
-                        <td>{participant.userName}</td>
-                        <td>{participant.userDepartment || '-'}</td>
-                        <td>
-                          <span className={`status ${participant.checked ? 'checked' : 'unchecked'}`}>
-                            {participant.checked ? '✓ 참여' : '○ 미참여'}
-                          </span>
-                        </td>
-                        <td>{participant.note || '-'}</td>
-                      </tr>
-                    ))}
+                    {participants.map((participant) => {
+                      const isOther = isDemo && participant.userId !== user?.id;
+                      const rawDept = participant.userDepartment || '-';
+                      return (
+                        <tr key={participant.id}>
+                          <td>{isOther ? maskNameForDemo(participant.userName) : participant.userName}</td>
+                          <td>{isOther ? maskDepartmentForDemo(rawDept) : rawDept}</td>
+                          <td>
+                            <span className={`status ${participant.checked ? 'checked' : 'unchecked'}`}>
+                              {participant.checked ? '✓ 수령' : 'X 미수령'}
+                            </span>
+                          </td>
+                          <td>{participant.note || '-'}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               )}

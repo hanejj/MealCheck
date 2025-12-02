@@ -15,6 +15,9 @@ public class UserDTO {
     
     private Long id;
     
+    // 로그인 아이디
+    private String username;
+
     @NotBlank(message = "이름은 필수입니다")
     @Size(max = 100, message = "이름은 100자 이내여야 합니다")
     private String name;
@@ -23,6 +26,9 @@ public class UserDTO {
     private String department;
     
     private Boolean active;
+    
+    // 권한 (예: ADMIN, USER)
+    private String role;
     
     private LocalDateTime createdAt;
     

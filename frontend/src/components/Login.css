@@ -50,6 +50,28 @@
   border-color: #3498db;
 }
 
+/* 자동 로그인 영역 */
+.form-remember {
+  margin-top: -8px;
+  margin-bottom: 24px;
+}
+
+.remember-label {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.remember-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #3498db;
+  cursor: pointer;
+}
+
 .submit-btn {
   width: 100%;
   padding: 12px;

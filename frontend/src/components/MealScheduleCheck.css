@@ -124,6 +124,7 @@
   display: flex;
   gap: 0.75rem;
   justify-content: flex-end;
+  flex-wrap: wrap; /* 작은 화면에서도 버튼이 카드 밖으로 나가지 않도록 줄바꿈 허용 */
 }
 
 .btn {

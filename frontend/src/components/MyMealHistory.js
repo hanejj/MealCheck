@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { mealScheduleAPI } from '../services/api';
+import { getSeoulTodayString, getSeoulDateNDaysAgoString } from '../utils/date';
 import './MyMealHistory.css';
 
 function MyMealHistory() {
@@ -12,15 +13,14 @@ function MyMealHistory() {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    // 기본적으로 최근 30일 기록 조회
-    const end = new Date();
-    const start = new Date();
-    start.setDate(start.getDate() - 30);
-    
-    setEndDate(end.toISOString().split('T')[0]);
-    setStartDate(start.toISOString().split('T')[0]);
-    
-    fetchHistory(start.toISOString().split('T')[0], end.toISOString().split('T')[0]);
+    // 기본적으로 최근 30일 기록 조회 (서울 기준)
+    const end = getSeoulTodayString();
+    const start = getSeoulDateNDaysAgoString(30);
+
+    setEndDate(end);
+    setStartDate(start);
+
+    fetchHistory(start, end);
   }, []);
 
   useEffect(() => {
@@ -51,14 +51,14 @@ function MyMealHistory() {
       );
     }
 
-    // 정렬
+    // 정렬 (스케줄 날짜 문자열 기준 - 타임존 영향 없이 정렬)
     filtered.sort((a, b) => {
-      const dateA = new Date(a.mealDate);
-      const dateB = new Date(b.mealDate);
+      const dateA = a.mealDate || '';
+      const dateB = b.mealDate || '';
       if (sortOrder === 'desc') {
-        return dateB - dateA; // 최신순
+        return dateB.localeCompare(dateA); // 최신순
       } else {
-        return dateA - dateB; // 오래된 순
+        return dateA.localeCompare(dateB); // 오래된 순
       }
     });
 
@@ -83,8 +83,10 @@ function MyMealHistory() {
   };
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`;
+    if (!dateString) return '';
+    const [datePart] = String(dateString).split('T'); // 'YYYY-MM-DD'만 사용
+    const [year, month, day] = datePart.split('-');
+    return `${Number(year)}년 ${Number(month)}월 ${Number(day)}일`;
   };
 
   if (loading) {
@@ -147,7 +149,7 @@ function MyMealHistory() {
               <th>날짜</th>
               <th>식사 타입</th>
               <th>설명</th>
-              <th>상태</th>
+              <th>수령 여부</th>
               <th>메모</th>
             </tr>
           </thead>
@@ -159,8 +161,10 @@ function MyMealHistory() {
                 </td>
               </tr>
             ) : (
-              filteredHistory.map((record) => (
-                <tr key={record.id}>
+              filteredHistory.map((record) => {
+                const rowKey = `${record.scheduleId || 's'}-${record.userId || 'u'}`;
+                return (
+                <tr key={rowKey}>
                   <td>{formatDate(record.mealDate)}</td>
                   <td>
                     <span className={`meal-type ${record.mealType.toLowerCase()}`}>
@@ -170,12 +174,12 @@ function MyMealHistory() {
                   <td>{record.description || '-'}</td>
                   <td>
                     <span className={`status ${record.checked ? 'checked' : 'unchecked'}`}>
-                      {record.checked ? '✓ 참여' : '○ 미참여'}
+                      {record.checked ? '✓ 수령' : 'X 미수령'}
                     </span>
                   </td>
                   <td>{record.note || '-'}</td>
                 </tr>
-              ))
+              )})
             )}
           </tbody>
         </table>

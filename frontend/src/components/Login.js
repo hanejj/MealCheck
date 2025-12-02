@@ -6,6 +6,7 @@ import './Login.css';
 function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -16,7 +17,7 @@ function Login() {
     setError('');
     setLoading(true);
 
-    const result = await login(username, password);
+    const result = await login(username, password, rememberMe);
     
     if (result.success) {
       navigate('/');
@@ -56,6 +57,17 @@ function Login() {
               required
               placeholder="비밀번호를 입력하세요"
             />
+          </div>
+
+          <div className="form-group form-remember">
+            <label className="remember-label">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+              />
+              자동 로그인
+            </label>
           </div>
 
           <button type="submit" disabled={loading} className="submit-btn">

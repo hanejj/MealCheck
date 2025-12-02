@@ -99,6 +99,11 @@ public class MealScheduleController {
     public ResponseEntity<List<MealScheduleParticipantDTO>> getCheckedParticipants(@PathVariable Long id) {
         return ResponseEntity.ok(scheduleService.getCheckedParticipants(id));
     }
+
+    @GetMapping("/{id}/participants/unchecked")
+    public ResponseEntity<List<MealScheduleParticipantDTO>> getUncheckedParticipants(@PathVariable Long id) {
+        return ResponseEntity.ok(scheduleService.getUncheckedParticipants(id));
+    }
     
     @PostMapping("/{id}/check")
     public ResponseEntity<MealScheduleParticipantDTO> checkSchedule(

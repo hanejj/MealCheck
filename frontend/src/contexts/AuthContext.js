@@ -30,9 +30,9 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const login = async (username, password) => {
+  const login = async (username, password, rememberMe) => {
     try {
-      const response = await authAPI.login({ username, password });
+      const response = await authAPI.login({ username, password, rememberMe });
       const { token, ...userData } = response.data;
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(userData));
@@ -83,6 +83,7 @@ export const AuthProvider = ({ children }) => {
     logout,
     isAuthenticated: !!user,
     isAdmin: user?.role === 'ADMIN',
+    isDemo: user?.username === 'demo_admin',
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

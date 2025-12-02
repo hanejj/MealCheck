@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { mealScheduleAPI, userAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { getSeoulTodayString } from '../utils/date';
 import './Dashboard.css';
 
 function Dashboard() {
@@ -19,7 +20,7 @@ function Dashboard() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const today = new Date().toISOString().split('T')[0];
+      const today = getSeoulTodayString();
       const [schedulesResponse, usersResponse, activeUsersResponse] = await Promise.all([
         mealScheduleAPI.getByDate(today),
         userAPI.getAll(),
@@ -54,10 +55,10 @@ function Dashboard() {
         note: '',
       });
       fetchDashboardData();
-      alert('참여 체크가 완료되었습니다.');
+      alert('식사 수령이 체크되었습니다.');
     } catch (error) {
       console.error('체크 실패:', error);
-      let errorMessage = '참여 체크에 실패했습니다.';
+      let errorMessage = '식사 수령 체크에 실패했습니다.';
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.response?.data?.error) {
@@ -75,10 +76,10 @@ function Dashboard() {
         userId: user.id,
       });
       fetchDashboardData();
-      alert('참여 체크가 취소되었습니다.');
+      alert('식사 수령 체크가 취소되었습니다.');
     } catch (error) {
       console.error('체크 취소 실패:', error);
-      alert('참여 체크 취소에 실패했습니다.');
+      alert('식사 수령 체크 취소에 실패했습니다.');
     }
   };
 
@@ -110,13 +111,13 @@ function Dashboard() {
         </div>
         <div className="stat-card">
           <div className="stat-value">{stats.checked}/{stats.total}</div>
-          <div className="stat-label">참여 인원(오늘)</div>
+          <div className="stat-label">식사 수령 인원(오늘)</div>
         </div>
         <div className="stat-card">
           <div className="stat-value">
             {stats.total > 0 ? Math.round((stats.checked / stats.total) * 100) : 0}%
           </div>
-          <div className="stat-label">참여율(오늘)</div>
+          <div className="stat-label">식사 수령률(오늘)</div>
         </div>
       </div>
 
@@ -161,7 +162,7 @@ function Dashboard() {
                     {getMealTypeText(schedule.mealType)}
                   </span>
                   <span className="participant-info">
-                    {schedule.checkedCount || 0} / {schedule.totalParticipants || 0}명 참여
+                    {schedule.checkedCount || 0} / {schedule.totalParticipants || 0}명 수령
                   </span>
                 </div>
                 {schedule.description && (
@@ -173,7 +174,7 @@ function Dashboard() {
                       className="btn btn-sm btn-secondary"
                       onClick={() => handleUncheckSchedule(schedule.id)}
                     >
-                      참여 취소
+                      수령 취소
                     </button>
                   ) : (
                     <button
@@ -181,7 +182,7 @@ function Dashboard() {
                       onClick={() => handleCheckSchedule(schedule.id)}
                       disabled={!user.active}
                     >
-                      {user.active ? '참여하기' : '비활성'}
+                      {user.active ? '수령하기' : '비활성'}
                     </button>
                   )}
                 </div>

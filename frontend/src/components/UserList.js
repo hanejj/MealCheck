@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { userAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import { maskNameForDemo, maskDepartmentForDemo } from '../utils/masking';
 import './UserList.css';
 
 function UserList() {
+  const { isDemo, user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -107,9 +110,11 @@ function UserList() {
     <div className="user-list">
       <div className="page-header">
         <h1 className="page-title">사용자 관리</h1>
-        <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-          + 사용자 추가
-        </button>
+        {!isDemo && (
+          <button className="btn btn-primary" onClick={() => handleOpenModal()}>
+            + 사용자 추가
+          </button>
+        )}
       </div>
 
       <div className="card">
@@ -124,38 +129,45 @@ function UserList() {
             </tr>
           </thead>
           <tbody>
-            {users.map((user) => (
-              <tr key={user.id}>
-                <td>{user.id}</td>
-                <td>{user.name}</td>
-                <td>{user.department || '-'}</td>
+            {users.map((u) => {
+              const isOther = isDemo && u.id !== currentUser?.id;
+              const rawDept = u.department || '-';
+              return (
+              <tr key={u.id}>
+                <td>{u.id}</td>
+                <td>{isOther ? maskNameForDemo(u.name) : u.name}</td>
+                <td>{isOther ? maskDepartmentForDemo(rawDept) : rawDept}</td>
                 <td>
-                  <span className={`badge ${user.active ? 'badge-active' : 'badge-inactive'}`}>
-                    {user.active ? '활성' : '비활성'}
+                  <span className={`badge ${u.active ? 'badge-active' : 'badge-inactive'}`}>
+                    {u.active ? '활성' : '비활성'}
                   </span>
                 </td>
                 <td>
-                  <button
-                    className="btn btn-sm btn-primary"
-                    onClick={() => handleOpenModal(user)}
-                    style={{ marginRight: '0.5rem' }}
-                  >
-                    수정
-                  </button>
-                  <button
-                    className="btn btn-sm btn-danger"
-                    onClick={() => handleDelete(user.id)}
-                  >
-                    삭제
-                  </button>
+                  {!isDemo && (
+                    <>
+                      <button
+                        className="btn btn-sm btn-primary"
+                        onClick={() => handleOpenModal(u)}
+                        style={{ marginRight: '0.5rem' }}
+                      >
+                        수정
+                      </button>
+                      <button
+                        className="btn btn-sm btn-danger"
+                        onClick={() => handleDelete(u.id)}
+                      >
+                        삭제
+                      </button>
+                    </>
+                  )}
                 </td>
               </tr>
-            ))}
+            )})}
           </tbody>
         </table>
       </div>
 
-      {showModal && (
+      {showModal && !isDemo && (
         <div className="modal" onClick={handleCloseModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">

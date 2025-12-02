@@ -90,6 +90,7 @@ export const mealScheduleAPI = {
   delete: (id) => api.delete(`/meal-schedules/${id}`),
   getParticipants: (id) => api.get(`/meal-schedules/${id}/participants`),
   getCheckedParticipants: (id) => api.get(`/meal-schedules/${id}/participants/checked`),
+  getUncheckedParticipants: (id) => api.get(`/meal-schedules/${id}/participants/unchecked`),
   check: (id, data) => api.post(`/meal-schedules/${id}/check`, data),
   uncheck: (id, data) => api.post(`/meal-schedules/${id}/uncheck`, data),
   getMyHistory: (startDate, endDate) => {

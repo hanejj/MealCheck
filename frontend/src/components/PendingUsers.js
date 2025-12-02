@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { authAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import { maskNameForDemo, maskDepartmentForDemo } from '../utils/masking';
 import './PendingUsers.css';
 
 function PendingUsers() {
+  const { isDemo, user: currentUser } = useAuth();
   const [pendingUsers, setPendingUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -70,46 +73,52 @@ function PendingUsers() {
           <p className="no-data">승인 대기 중인 사용자가 없습니다.</p>
         ) : (
           <div className="pending-users-list">
-            {pendingUsers.map((user) => (
-              <div key={user.id} className="pending-user-card">
+            {pendingUsers.map((pending) => {
+              const isOther = isDemo && pending.id !== currentUser?.id;
+              return (
+              <div key={pending.id} className="pending-user-card">
                 <div className="user-info">
                   <div className="info-row">
                     <span className="info-label">아이디:</span>
-                    <span className="info-value">{user.username}</span>
+                    <span className="info-value">{pending.username}</span>
                   </div>
                   <div className="info-row">
                     <span className="info-label">이름:</span>
-                    <span className="info-value">{user.name}</span>
+                    <span className="info-value">
+                      {isOther ? maskNameForDemo(pending.name) : pending.name}
+                    </span>
                   </div>
-                  {user.department && (
+                  {pending.department && (
                     <div className="info-row">
                       <span className="info-label">부서:</span>
-                      <span className="info-value">{user.department}</span>
+                      <span className="info-value">
+                        {isOther ? maskDepartmentForDemo(pending.department) : pending.department}
+                      </span>
                     </div>
                   )}
                   <div className="info-row">
                     <span className="info-label">요청일:</span>
                     <span className="info-value">
-                      {new Date(user.createdAt).toLocaleString('ko-KR')}
+                      {new Date(pending.createdAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}
                     </span>
                   </div>
                 </div>
                 <div className="user-actions">
                   <button
-                    onClick={() => handleApprove(user.id)}
+                    onClick={() => handleApprove(pending.id)}
                     className="btn btn-success"
                   >
                     승인
                   </button>
                   <button
-                    onClick={() => handleReject(user.id)}
+                    onClick={() => handleReject(pending.id)}
                     className="btn btn-danger"
                   >
                     거절
                   </button>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         )}
       </div>

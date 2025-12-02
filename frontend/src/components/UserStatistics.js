@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { userAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import { maskDepartmentForDemo } from '../utils/masking';
 import './UserStatistics.css';
 
 function UserStatistics() {
+  const { isDemo } = useAuth();
   const [statistics, setStatistics] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -90,22 +93,26 @@ function UserStatistics() {
           <div className="department-chart">
             {Object.entries(statistics.byDepartment)
               .sort((a, b) => b[1] - a[1])
-              .map(([department, count]) => (
-                <div key={department} className="department-item">
-                  <div className="department-info">
-                    <span className="department-name">{department}</span>
-                    <span className="department-count">{count}명</span>
-                  </div>
-                  <div className="department-bar-container">
-                    <div 
-                      className="department-bar"
-                      style={{ 
-                        width: `${(count / Math.max(...Object.values(statistics.byDepartment))) * 100}%` 
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
+                .map(([department, count]) => {
+                  const rawDept = department || '부서 미지정';
+                  const displayDept = isDemo ? maskDepartmentForDemo(rawDept) : rawDept;
+                  return (
+                    <div key={department || 'unknown'} className="department-item">
+                      <div className="department-info">
+                        <span className="department-name">{displayDept}</span>
+                        <span className="department-count">{count}명</span>
+                      </div>
+                      <div className="department-bar-container">
+                        <div
+                          className="department-bar"
+                          style={{
+                            width: `${(count / Math.max(...Object.values(statistics.byDepartment))) * 100}%`
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
           </div>
         ) : (
           <p className="empty-message">부서 정보가 없습니다.</p>

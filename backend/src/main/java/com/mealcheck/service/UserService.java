@@ -26,6 +26,7 @@ public class UserService {
     public List<UserDTO> getAllUsers() {
         // 승인된 사용자 모두 반환 (활성/비활성 모두 포함)
         return userRepository.findByApprovedTrue().stream()
+            .filter(user -> !DemoAccountGuard.DEMO_USERNAME.equals(user.getUsername()))
             .map(this::convertToDTO)
             .collect(Collectors.toList());
     }
@@ -34,6 +35,7 @@ public class UserService {
         // 승인되고 활성화된 사용자만 반환
         return userRepository.findByApprovedTrue().stream()
             .filter(User::getActive)
+            .filter(user -> !DemoAccountGuard.DEMO_USERNAME.equals(user.getUsername()))
             .map(this::convertToDTO)
             .collect(Collectors.toList());
     }
@@ -126,8 +128,10 @@ public class UserService {
     }
     
     public java.util.Map<String, Object> getUserStatistics() {
-        // 승인된 사용자만 통계에 포함
-        List<User> approvedUsers = userRepository.findByApprovedTrue();
+        // 승인된 사용자 중 데모 계정 제외
+        List<User> approvedUsers = userRepository.findByApprovedTrue().stream()
+            .filter(user -> !DemoAccountGuard.DEMO_USERNAME.equals(user.getUsername()))
+            .collect(java.util.stream.Collectors.toList());
         
         java.util.Map<String, Object> stats = new java.util.HashMap<>();
         stats.put("totalUsers", approvedUsers.size());

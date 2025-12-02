@@ -72,8 +72,9 @@ public class AuthService {
         User user = userRepository.findByUsername(request.getUsername())
             .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다"));
 
-        // JWT 토큰 생성
-        String token = tokenProvider.generateToken(user.getUsername());
+        // JWT 토큰 생성 (자동 로그인 옵션에 따라 만료시간 선택)
+        boolean rememberMe = Boolean.TRUE.equals(request.getRememberMe());
+        String token = tokenProvider.generateToken(user.getUsername(), rememberMe);
 
         return new AuthResponse(
             token,

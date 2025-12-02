@@ -1,21 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { mealScheduleAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { maskNameForDemo, maskDepartmentForDemo } from '../utils/masking';
+import { getSeoulTodayString } from '../utils/date';
 import './MealScheduleCheck.css';
 
 function MealScheduleCheck() {
-  const { user } = useAuth();
+  const { user, isDemo } = useAuth();
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(getTodayString());
+  const [selectedDate, setSelectedDate] = useState(getSeoulTodayString());
   const [showParticipantsModal, setShowParticipantsModal] = useState(false);
+  const [showNonRecipientsModal, setShowNonRecipientsModal] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [participants, setParticipants] = useState([]);
-
-  function getTodayString() {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-  }
+  const [nonRecipients, setNonRecipients] = useState([]);
 
   useEffect(() => {
     fetchSchedules();
@@ -44,10 +43,10 @@ function MealScheduleCheck() {
         note: note,
       });
       fetchSchedules();
-      alert('참여 체크가 완료되었습니다.');
+      alert('식사 수령이 체크되었습니다.');
     } catch (error) {
       console.error('체크 실패:', error);
-      let errorMessage = '참여 체크에 실패했습니다.';
+      let errorMessage = '식사 수령 체크에 실패했습니다.';
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.response?.data?.error) {
@@ -65,10 +64,10 @@ function MealScheduleCheck() {
         userId: user.id,
       });
       fetchSchedules();
-      alert('참여 체크가 취소되었습니다.');
+      alert('식사 수령 체크가 취소되었습니다.');
     } catch (error) {
       console.error('체크 취소 실패:', error);
-      alert('참여 체크 취소에 실패했습니다.');
+      alert('식사 수령 체크 취소에 실패했습니다.');
     }
   };
 
@@ -90,6 +89,24 @@ function MealScheduleCheck() {
     setParticipants([]);
   };
 
+  const handleShowNonRecipients = async (schedule) => {
+    try {
+      setSelectedSchedule(schedule);
+      const response = await mealScheduleAPI.getUncheckedParticipants(schedule.id);
+      setNonRecipients(response.data);
+      setShowNonRecipientsModal(true);
+    } catch (error) {
+      console.error('미수령자 목록 로드 실패:', error);
+      alert('미수령자 목록을 불러오는데 실패했습니다.');
+    }
+  };
+
+  const handleCloseNonRecipientsModal = () => {
+    setShowNonRecipientsModal(false);
+    setSelectedSchedule(null);
+    setNonRecipients([]);
+  };
+
   const getMealTypeText = (type) => {
     switch (type) {
       case 'BREAKFAST': return '아침';
@@ -100,9 +117,12 @@ function MealScheduleCheck() {
   };
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
+    if (!dateString) return '';
+    const [datePart] = String(dateString).split('T'); // 'YYYY-MM-DD'만 사용
+    const [year, month, day] = datePart.split('-');
+    const date = new Date(Number(year), Number(month) - 1, Number(day));
     const days = ['일', '월', '화', '수', '목', '금', '토'];
-    return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일 (${days[date.getDay()]})`;
+    return `${year}년 ${Number(month)}월 ${Number(day)}일 (${days[date.getDay()]})`;
   };
 
   if (loading) {
@@ -140,7 +160,7 @@ function MealScheduleCheck() {
                   {getMealTypeText(schedule.mealType)}
                 </span>
                 <span className="participant-count">
-                  {schedule.checkedCount || 0} / {schedule.totalParticipants || 0}명 참여
+                  {schedule.checkedCount || 0} / {schedule.totalParticipants || 0}명 수령
                 </span>
               </div>
               
@@ -155,14 +175,20 @@ function MealScheduleCheck() {
                   className="btn btn-sm btn-info"
                   onClick={() => handleShowParticipants(schedule)}
                 >
-                  참여자 보기
+                  수령자 보기
+                </button>
+                <button
+                  className="btn btn-sm btn-warning"
+                  onClick={() => handleShowNonRecipients(schedule)}
+                >
+                  미수령자 보기
                 </button>
                 {schedule.currentUserChecked ? (
                   <button
                     className="btn btn-sm btn-secondary"
                     onClick={() => handleUncheck(schedule.id)}
                   >
-                    참여 취소
+                    수령 취소
                   </button>
                 ) : (
                   <button
@@ -170,7 +196,7 @@ function MealScheduleCheck() {
                     onClick={() => handleCheck(schedule.id)}
                     disabled={!user.active}
                   >
-                    {user.active ? '참여하기' : '비활성'}
+                    {user.active ? '수령하기' : '비활성'}
                   </button>
                 )}
               </div>
@@ -179,36 +205,85 @@ function MealScheduleCheck() {
         )}
       </div>
 
-      {/* 참여자 목록 모달 */}
+      {/* 수령자 목록 모달 */}
       {showParticipantsModal && (
         <div className="modal" onClick={handleCloseParticipantsModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2 className="modal-title">
-                참여자 목록 - {selectedSchedule && getMealTypeText(selectedSchedule.mealType)}
+                수령자 목록 - {selectedSchedule && getMealTypeText(selectedSchedule.mealType)}
               </h2>
               <button className="close-btn" onClick={handleCloseParticipantsModal}>×</button>
             </div>
 
             <div className="participants-list">
               {participants.length === 0 ? (
-                <p className="empty-message">아직 참여한 사용자가 없습니다.</p>
+                <p className="empty-message">아직 식사를 수령한 사용자가 없습니다.</p>
               ) : (
                 <div className="participants-grid">
-                  {participants.map((participant) => (
-                    <div key={participant.id} className="participant-item">
-                      <div className="participant-name">{participant.userName}</div>
-                      <div className="participant-department">
-                        {participant.userDepartment || '부서 미지정'}
+                  {participants.map((participant) => {
+                    const isOther = isDemo && participant.userId !== user?.id;
+                    const rawDept = participant.userDepartment || '부서 미지정';
+                    return (
+                      <div key={participant.id} className="participant-item">
+                        <div className="participant-name">
+                          {isOther ? maskNameForDemo(participant.userName) : participant.userName}
+                        </div>
+                        <div className="participant-department">
+                          {isOther ? maskDepartmentForDemo(rawDept) : rawDept}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
 
             <div className="modal-footer">
               <button className="btn btn-outline" onClick={handleCloseParticipantsModal}>
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 미수령자 목록 모달 */}
+      {showNonRecipientsModal && (
+        <div className="modal" onClick={handleCloseNonRecipientsModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">
+                미수령자 목록 - {selectedSchedule && getMealTypeText(selectedSchedule.mealType)}
+              </h2>
+              <button className="close-btn" onClick={handleCloseNonRecipientsModal}>×</button>
+            </div>
+
+            <div className="participants-list">
+              {nonRecipients.length === 0 ? (
+                <p className="empty-message">모든 사용자가 식사를 수령했습니다.</p>
+              ) : (
+                <div className="participants-grid">
+                  {nonRecipients.map((participant) => {
+                    const isOther = isDemo && participant.userId !== user?.id;
+                    const rawDept = participant.userDepartment || '부서 미지정';
+                    return (
+                      <div key={participant.userId} className="participant-item">
+                        <div className="participant-name">
+                          {isOther ? maskNameForDemo(participant.userName) : participant.userName}
+                        </div>
+                        <div className="participant-department">
+                          {isOther ? maskDepartmentForDemo(rawDept) : rawDept}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="modal-footer">
+              <button className="btn btn-outline" onClick={handleCloseNonRecipientsModal}>
                 닫기
               </button>
             </div>

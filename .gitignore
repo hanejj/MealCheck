@@ -41,6 +41,8 @@ backend/mvnw.cmd
 
 # Docker
 docker-compose.override.yml
+docker-compose.yml
+docker-compose.prod.yml
 
 # Kubernetes
 k8s/secrets.yml

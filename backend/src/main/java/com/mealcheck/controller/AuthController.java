@@ -60,9 +60,11 @@ public class AuthController {
             User user = authService.getCurrentUser();
             UserDTO dto = new UserDTO();
             dto.setId(user.getId());
+            dto.setUsername(user.getUsername());
             dto.setName(user.getName());
             dto.setDepartment(user.getDepartment());
             dto.setActive(user.getActive());
+            dto.setRole(user.getRole());
             dto.setCreatedAt(user.getCreatedAt());
             dto.setUpdatedAt(user.getUpdatedAt());
             return ResponseEntity.ok(dto);

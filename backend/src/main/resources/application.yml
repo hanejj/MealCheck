@@ -47,7 +47,8 @@ management:
 # JWT 설정
 jwt:
   # 기본 값은 예시용 placeholder 이고, 운영/배포 환경에서는 반드시 JWT_SECRET 환경 변수로 덮어써야 합니다.
-  secret: ${JWT_SECRET:change_me_jwt_secret}
+  # JwtTokenProvider 에서 Base64 디코딩 없이 일반 텍스트를 그대로 사용합니다.
+  secret: ${JWT_SECRET:local-dev-jwt-secret}
   expiration: ${JWT_EXPIRATION:86400000}  # 24시간 (밀리초)
 
 # 로깅 설정

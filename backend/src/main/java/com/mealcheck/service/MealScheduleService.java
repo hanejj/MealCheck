@@ -11,17 +11,20 @@ import com.mealcheck.repository.MealScheduleParticipantRepository;
 import com.mealcheck.repository.MealScheduleRepository;
 import com.mealcheck.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
+@Slf4j
 public class MealScheduleService {
     
     private final MealScheduleRepository scheduleRepository;
@@ -78,6 +81,8 @@ public class MealScheduleService {
             });
         
         MealSchedule schedule = new MealSchedule();
+        // 프론트엔드에서 yyyy-MM-dd 형식의 순수 날짜(LocalDate)로 전달되며,
+        // JacksonTimeConfig 에서 타임존 보정을 처리하므로 별도의 +1일 보정 없이 그대로 사용한다.
         schedule.setMealDate(dto.getMealDate());
         schedule.setMealType(dto.getMealType());
         schedule.setDescription(dto.getDescription());
@@ -85,6 +90,9 @@ public class MealScheduleService {
         schedule.setCreatedBy(user);
         
         MealSchedule saved = scheduleRepository.save(schedule);
+        // 디버깅용 로그: 들어온 날짜와 실제 저장된 날짜 비교
+        log.info("createSchedule - requestedDate={}, persistedDate={}, id={}",
+            dto.getMealDate(), saved.getMealDate(), saved.getId());
         return convertToDTO(saved);
     }
     
@@ -125,6 +133,57 @@ public class MealScheduleService {
         return participantRepository.findByScheduleIdAndCheckedTrue(scheduleId).stream()
             .map(this::convertParticipantToDTO)
             .collect(Collectors.toList());
+    }
+
+    /**
+     * 해당 스케줄에서 아직 식사를 수령하지 않은(checked 가 false 이거나,
+     * 아예 참여 기록이 없는) 활성 사용자 목록을 반환합니다.
+     */
+    public List<MealScheduleParticipantDTO> getUncheckedParticipants(Long scheduleId) {
+        // 스케줄 존재 여부 검증
+        MealSchedule schedule = scheduleRepository.findById(scheduleId)
+            .orElseThrow(() -> new RuntimeException("식사 스케줄을 찾을 수 없습니다: " + scheduleId));
+
+        // 활성/승인 사용자 전체
+        List<User> activeUsers = userRepository.findByApprovedTrue().stream()
+            .filter(User::getActive)
+            .filter(user -> !DemoAccountGuard.DEMO_USERNAME.equals(user.getUsername()))
+            .collect(Collectors.toList());
+
+        // 해당 스케줄에 대한 기존 참여 정보 맵 (userId -> participant)
+        Map<Long, MealScheduleParticipant> participantMap = participantRepository.findByScheduleId(schedule.getId()).stream()
+            .collect(Collectors.toMap(p -> p.getUser().getId(), p -> p));
+
+        List<MealScheduleParticipantDTO> result = new ArrayList<>();
+
+        for (User user : activeUsers) {
+            MealScheduleParticipant participant = participantMap.get(user.getId());
+
+            // 이미 수령(checked=true) 한 사용자는 제외
+            if (participant != null && Boolean.TRUE.equals(participant.getChecked())) {
+                continue;
+            }
+
+            if (participant != null) {
+                // 참여 기록은 있으나 미수령(checked=false) 인 경우
+                result.add(convertParticipantToDTO(participant));
+            } else {
+                // 참여 기록 자체가 없는 사용자도 미수령자로 간주
+                MealScheduleParticipantDTO dto = new MealScheduleParticipantDTO();
+                dto.setId(null);
+                dto.setScheduleId(schedule.getId());
+                dto.setUserId(user.getId());
+                dto.setUserName(user.getName());
+                dto.setUserDepartment(user.getDepartment());
+                dto.setChecked(false);
+                dto.setNote(null);
+                dto.setCreatedAt(null);
+                dto.setUpdatedAt(null);
+                result.add(dto);
+            }
+        }
+
+        return result;
     }
     
     @Transactional
@@ -175,7 +234,9 @@ public class MealScheduleService {
     private MealScheduleDTO convertToDTO(MealSchedule schedule, Long userId) {
         MealScheduleDTO dto = new MealScheduleDTO();
         dto.setId(schedule.getId());
-        dto.setMealDate(schedule.getMealDate());
+        // DB에 저장된 날짜가 하루 앞당겨져 있는 환경을 고려해,
+        // 클라이언트로 내려줄 때는 +1일 보정해서 전달한다.
+        dto.setMealDate(schedule.getMealDate() != null ? schedule.getMealDate().plusDays(1) : null);
         dto.setMealType(schedule.getMealType());
         dto.setDescription(schedule.getDescription());
         dto.setActive(schedule.getActive());
@@ -186,7 +247,8 @@ public class MealScheduleService {
         // 통계 추가
         long totalActiveUsers = userRepository.findByApprovedTrue().stream()
             .filter(User::getActive)
-            .count(); // 활성 사용자 수
+            .filter(user -> !DemoAccountGuard.DEMO_USERNAME.equals(user.getUsername()))
+            .count(); // 활성 사용자 수 (데모 계정 제외)
         long checkedCount = participantRepository.countByScheduleIdAndCheckedTrue(schedule.getId());
         dto.setTotalParticipants(totalActiveUsers);
         dto.setCheckedCount(checkedCount);
@@ -238,8 +300,8 @@ public class MealScheduleService {
     }
     
     public List<MealHistoryDTO> getAllMealHistory(LocalDate startDate, LocalDate endDate) {
+        // 조회 기간에 해당하는 스케줄 목록 조회
         List<MealSchedule> schedules;
-        
         if (startDate != null && endDate != null) {
             schedules = scheduleRepository.findAll().stream()
                 .filter(s -> !s.getMealDate().isBefore(startDate) && !s.getMealDate().isAfter(endDate))
@@ -247,23 +309,55 @@ public class MealScheduleService {
         } else {
             schedules = scheduleRepository.findAll();
         }
-        
+
+        // 활성/승인 사용자 전체 (각 스케줄마다 동일 기준 사용)
+        List<User> activeUsers = userRepository.findByApprovedTrue().stream()
+            .filter(User::getActive)
+            .filter(user -> !DemoAccountGuard.DEMO_USERNAME.equals(user.getUsername()))
+            .collect(Collectors.toList());
+
         List<MealHistoryDTO> historyList = new ArrayList<>();
+
         for (MealSchedule schedule : schedules) {
-            List<MealScheduleParticipant> participants = participantRepository.findByScheduleId(schedule.getId());
-            for (MealScheduleParticipant participant : participants) {
-                historyList.add(convertToMealHistoryDTO(participant));
+            // 해당 스케줄의 기존 참여 정보 (userId -> participant)
+            Map<Long, MealScheduleParticipant> participantMap = participantRepository.findByScheduleId(schedule.getId()).stream()
+                .collect(Collectors.toMap(p -> p.getUser().getId(), p -> p));
+
+            for (User user : activeUsers) {
+                MealScheduleParticipant participant = participantMap.get(user.getId());
+
+                if (participant != null) {
+                    // 이미 참여 정보가 있는 경우 (수령 or 미수령)
+                    historyList.add(convertToMealHistoryDTO(participant));
+                } else {
+                    // 참여 정보 자체가 없는 경우도 미수령자로 간주하여 기록 생성
+                    MealHistoryDTO dto = new MealHistoryDTO();
+                    dto.setId(null);
+                    dto.setScheduleId(schedule.getId());
+                    dto.setMealDate(schedule.getMealDate() != null ? schedule.getMealDate().plusDays(1) : null);
+                    dto.setMealType(schedule.getMealType());
+                    dto.setDescription(schedule.getDescription());
+                    dto.setUserId(user.getId());
+                    dto.setUserName(user.getName());
+                    dto.setUserDepartment(user.getDepartment());
+                    dto.setChecked(false);
+                    dto.setNote(null);
+                    dto.setCheckedAt(null);
+                    historyList.add(dto);
+                }
             }
         }
-        
+
         return historyList;
     }
-    
+
     private MealHistoryDTO convertToMealHistoryDTO(MealScheduleParticipant participant) {
         MealHistoryDTO dto = new MealHistoryDTO();
         dto.setId(participant.getId());
         dto.setScheduleId(participant.getSchedule().getId());
-        dto.setMealDate(participant.getSchedule().getMealDate());
+        dto.setMealDate(participant.getSchedule().getMealDate() != null
+            ? participant.getSchedule().getMealDate().plusDays(1)
+            : null);
         dto.setMealType(participant.getSchedule().getMealType());
         dto.setDescription(participant.getSchedule().getDescription());
         dto.setUserId(participant.getUser().getId());

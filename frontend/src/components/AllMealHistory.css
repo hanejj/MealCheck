@@ -50,6 +50,12 @@
   flex-wrap: wrap;
 }
 
+.export-buttons {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
 .filter-group {
   display: flex;
   align-items: center;
